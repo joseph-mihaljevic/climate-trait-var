@@ -1,0 +1,173 @@
+---
+title: "Supplement"
+author: "Mihaljevic & Páez"
+number-sections: true
+number-depth: 5
+format: 
+  html:
+    code-fold: true
+    fig-align: center
+    fig-cap-location: bottom
+  pdf: 
+    documentclass: article
+    geometry: 
+      - top=1in
+      - left=0.75in
+      - bottom=1in
+      - right=0.75in
+    include-in-header: 
+      text: |
+        \newcommand{\beginsupplement}{
+        \setcounter{table}{0}  
+        \renewcommand{\thetable}{S\arabic{table}} 
+        \setcounter{figure}{0} 
+        \renewcommand{\thefigure}{S\arabic{figure}}
+        }
+editor: visual
+---
+
+```{r}
+#| message: false
+#| warning: false
+
+# Source functions and static objects
+source("supp_funcs.R")
+
+```
+
+```{=tex}
+\beginsupplement
+```
+In this supplement, we will show alternative simulations of the host-pathogen and host-demography models with different assumptions.
+
+First, we will generates the same temperature regime as used in the main text, which will be used throughout this supplement for consistency and to remove any effect of the specific temperature regime.
+
+```{r}
+set.seed(5)
+
+# Create a realistic temperature sequence:
+time_seq = c(1:90)
+T_temp = 40 * exp(-0.5 * (time_seq + 10 - 55)^2 / 800) + rnorm(length(time_seq), 0, 2.5)
+# plot(T_temp ~ time_seq, type = "l")
+
+# Fit a piece-wise constant (regression tree)
+piece_mod = rpart(T_temp ~ time_seq,
+                  control=rpart.control(maxdepth=5, cp=.0001))
+
+# Quick check on results:
+T_piece = predict(piece_mod, data.frame(time_seq = time_seq))
+```
+
+# Positive relationship between CV and temperature
+
+We will briefly explore an reciprocal effect of temperature on CV compared to the main text. Specifically, we will show how a positive relationship between CV and temperature can impact long-term dynamics of the host population density.
+
+## Simulate the CV-temp relationship
+
+Here, we generate a figure summarizing the effect of temperature on CV during the annual epizootic, which draws upon the piece-wise pattern of temperature over time. Note that we parameterized the effect so that we maintain an average CV=0.5, to be consistent with the simulation in the main text.
+
+```{r}
+#| fig-width: 3
+#| fig-height: 8
+#| fig-cap: "Positive relationship between CV and temperature during the annual epizootic"
+#| label: fig-cv-pos-1
+
+# Smooth temperature sequence:
+T_seq = seq(0, 45, by = 0.1)
+
+# CV Gaussian function parameters
+a_CV = 1.1
+b_CV = 44.5
+c_CV = 12
+
+# Gaussian functional relationship (smooth)
+CV_t = a_CV * exp( -0.5 * ((T_seq - b_CV)/c_CV)^2 )
+
+# plot(CV_t ~ T_seq, type = "l",
+#      xlab = "Temp (C)", ylab = expression("C"["(T)"]))
+
+# Gaussian functional relationship (based on piece-wise temperature)
+CV_piece = a_CV * exp( -0.5 * ((T_piece - b_CV)/c_CV)^2 )
+mean_CV = round(mean(CV_piece),2)
+print(paste0("mean of CV_piece = ", mean_CV))
+
+plot_S1.1 = CV_plot_func(CV_t, CV_piece, T_seq)
+
+grid.arrange(plot_S1.1)
+```
+
+## Run the multi-generational simulations
+
+```{r}
+set.seed(seed = NULL)
+cv_positive_sims = run_full_sim(time_seq)
+str(cv_positive_sims)
+# Returns an array 
+## Gen == generation (i.e., year)
+## Class == Susceptible (S), Pathogen (P)
+## CV == whether CV was fixed or temp-dependent
+```
+
+Plot the output:
+
+```{r}
+#| fig-cap: "Comparing multi-generational effects of fixed CV versus a positive relationship between CV and temperature during the annual epizootic."
+#| label: fig-cv-pos-2
+
+plot_S1.2 = multi_gen_plot(cv_positive_sims)
+grid.arrange(plot_S1.2)
+```
+
+
+## Slightly change the shape of the positive relationship
+
+We can show that, even if we maintain the mean CV across the epizootic, if we change the pattern of CV over time, this leads to distinct long-term dynamics of host population density.
+
+For example, below we slightly alter the CV-temperature relationship. In this case, the average CV is still 0.5, as in @fig-cv-pos-1 and @fig-cv-pos-2. However, the max CV is slightly lower (0.9), and the CV at low and high temperatures is a bit higher.
+
+```{r}
+#| fig-width: 3
+#| fig-height: 8
+#| fig-cap: "Positive relationship between CV and temperature during the annual epizootic"
+#| label: fig-cv-pos-3
+
+# Smooth temperature sequence:
+T_seq = seq(0, 45, by = 0.1)
+
+# CV Gaussian function parameters
+a_CV = 0.9
+b_CV = 44.5
+c_CV = 15
+
+# Gaussian functional relationship (smooth)
+CV_t = a_CV * exp( -0.5 * ((T_seq - b_CV)/c_CV)^2 )
+
+# plot(CV_t ~ T_seq, type = "l",
+#      xlab = "Temp (C)", ylab = expression("C"["(T)"]))
+
+# Gaussian functional relationship (based on piece-wise temperature)
+CV_piece = a_CV * exp( -0.5 * ((T_piece - b_CV)/c_CV)^2 )
+mean_CV = round(mean(CV_piece),2)
+print(paste0("mean of CV_piece = ", mean_CV))
+
+plot_S1.3 = CV_plot_func(CV_t, CV_piece, T_seq)
+
+grid.arrange(plot_S1.3)
+```
+
+```{r}
+#| fig-cap: "Comparing multi-generational effects of fixed CV versus a positive relationship between CV and temperature during the annual epizootic."
+#| label: fig-cv-pos-4
+cv_positive_sims2 = run_full_sim(time_seq)
+
+plot_S1.4 = multi_gen_plot(cv_positive_sims2)
+grid.arrange(plot_S1.4)
+```
+
+```{r}
+#| echo: false
+print(paste0("Mean host density, Fixed C = ", 
+             round(median(cv_positive_sims2[,1,1]), 3)))
+print(paste0("Mean host density, Temp-Dependent C = ", 
+             round(median(cv_positive_sims2[,1,2]), 3)))
+```
